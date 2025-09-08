@@ -98,7 +98,7 @@ class WebSocketManager:
         else:
             await websocket.send_json({"type": "chat", "content": "Knowledge empty, please run the research first to obtain knowledge"})
 
-async def run_agent(task, report_type, report_source, source_urls, document_urls, tone: Tone, websocket, stream_output=stream_output, headers=None, query_domains=[], config_path="", return_researcher=False, mcp_enabled=False, mcp_strategy="fast", mcp_configs=[]):
+async def run_agent(task, report_type, report_source, source_urls, document_urls, tone: Tone, websocket, stream_output=stream_output, headers=None, query_domains=[], config_path="", vector_store_path="", return_researcher=False, mcp_enabled=False, mcp_strategy="fast", mcp_configs=[]):
     """Run the agent."""    
     # Create logs handler for this research task
     logs_handler = CustomLogsHandler(websocket, task)
@@ -142,6 +142,7 @@ async def run_agent(task, report_type, report_source, source_urls, document_urls
             document_urls=document_urls,
             tone=tone,
             config_path=config_path,
+            vector_store_path=vector_store_path,
             websocket=logs_handler,  # Use logs_handler instead of raw websocket
             headers=headers,
             mcp_configs=mcp_configs if mcp_enabled else None,
@@ -159,6 +160,7 @@ async def run_agent(task, report_type, report_source, source_urls, document_urls
             document_urls=document_urls,
             tone=tone,
             config_path=config_path,
+            vector_store_path=vector_store_path,
             websocket=logs_handler,  # Use logs_handler instead of raw websocket
             headers=headers,
             mcp_configs=mcp_configs if mcp_enabled else None,

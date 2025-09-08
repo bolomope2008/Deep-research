@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local GPT Researcher</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Local GPT Researcher</h1>
+        <form id="research-form">
+            <div class="form-group">
+                <label for="task">Research Task</label>
+                <textarea id="task" name="task" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="model">LLM Model</label>
+                <select id="model" name="model" required>
+                    <option value="">Loading models...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="knowledge-base">Knowledge Base</label>
+                <div class="kb-container">
+                    <input type="text" id="knowledge-base" name="knowledge-base" list="kb-list" placeholder="Choose or create a knowledge base">
+                    <datalist id="kb-list"></datalist>
+                    <button type="button" id="refresh-kb" class="refresh-btn">⟳</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <input type="checkbox" id="deep-research" name="deep-research">
+                <label for="deep-research">Enable Deep Research</label>
+            </div>
+            <div id="deep-research-params" class="hidden">
+                <div class="form-group">
+                    <label for="max-iterations">Max Iterations</label>
+                    <input type="number" id="max-iterations" name="max-iterations" value="3">
+                </div>
+                <div class="form-group">
+                    <label for="max-search-results">Max Search Results</label>
+                    <input type="number" id="max-search-results" name="max-search-results" value="5">
+                </div>
+                <div class="form-group">
+                    <label for="max-content-results">Max Content Results</label>
+                    <input type="number" id="max-content-results" name="max-content-results" value="5">
+                </div>
+            </div>
+            <button type="submit">Start Research</button>
+        </form>
+        <div id="results-container">
+            <h2>Research Results</h2>
+            <pre id="results"></pre>
+        </div>
+
+        <div id="upload-container">
+            <h2>Upload to Knowledge Base</h2>
+            <form id="upload-form">
+                <div class="form-group">
+                    <label for="file-upload">Select a file</label>
+                    <input type="file" id="file-upload" name="file-upload" required>
+                </div>
+                <button type="submit">Upload</button>
+            </form>
+            <div id="upload-status"></div>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+</body>
+</html>

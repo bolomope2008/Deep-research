@@ -3,11 +3,12 @@ import os
 from typing import Dict, List
 import time
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, File, UploadFile, BackgroundTasks
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, File, UploadFile, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import FileResponse
+import requests
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from backend.server.websocket_manager import WebSocketManager
@@ -50,6 +51,8 @@ class ResearchRequest(BaseModel):
     headers: dict | None = None
     repo_name: str
     branch_name: str
+    knowledge_base: str | None = None
+    deep_research_config: dict | None = None
     generate_in_background: bool = True
 
 
@@ -102,7 +105,10 @@ DOC_PATH = os.getenv("DOC_PATH", "./my-docs")
 def startup_event():
     os.makedirs("outputs", exist_ok=True)
     app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
-    # os.makedirs(DOC_PATH, exist_ok=True)  # Commented out to avoid creating the folder if not needed
+
+    # Initialize vector store directory
+    vector_store_path = os.environ.get("VECTOR_STORE_PATH", "vector_store")
+    os.makedirs(vector_store_path, exist_ok=True)
     
 
 # Routes
@@ -122,6 +128,24 @@ async def read_report(request: Request, research_id: str):
 
 
 async def write_report(research_request: ResearchRequest, research_id: str = None):
+    # Configure deep research parameters
+    # The DeepResearchSkill gets its configuration from the researcher's config object (cfg).
+    # The config object is populated from environment variables.
+    # Therefore, we set the environment variables here before the researcher is initialized.
+    if research_request.deep_research_config:
+        os.environ["DEEP_RESEARCH_DEPTH"] = str(research_request.deep_research_config.get("max_iterations", 2))
+        os.environ["DEEP_RESEARCH_BREADTH"] = str(research_request.deep_research_config.get("max_search_results_per_query", 4))
+
+    vector_store_path = None
+    if research_request.knowledge_base:
+        vector_store_base_path = os.environ.get("VECTOR_STORE_PATH", "vector_store")
+        kb_path = os.path.join(vector_store_base_path, research_request.knowledge_base)
+        vector_store_path = kb_path
+
+        # Set the document path for the researcher to the 'docs' subfolder of the knowledge base
+        doc_path = os.path.join(kb_path, "docs")
+        os.environ["DOC_PATH"] = doc_path
+
     report_information = await run_agent(
         task=research_request.task,
         report_type=research_request.report_type,
@@ -134,6 +158,7 @@ async def write_report(research_request: ResearchRequest, research_id: str = Non
         headers=research_request.headers,
         query_domains=[],
         config_path="",
+        vector_store_path=vector_store_path,
         return_researcher=True
     )
 
@@ -187,13 +212,43 @@ async def run_multi_agents():
 
 
 @app.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
-    return await handle_file_upload(file, DOC_PATH)
+async def upload_file(file: UploadFile = File(...), knowledge_base: str = Form(...)):
+    if not knowledge_base:
+        return JSONResponse(status_code=400, content={"message": "Knowledge base name is required."})
+
+    vector_store_base_path = os.environ.get("VECTOR_STORE_PATH", "vector_store")
+    kb_path = os.path.join(vector_store_base_path, knowledge_base)
+    doc_path = os.path.join(kb_path, "docs")
+    os.makedirs(doc_path, exist_ok=True)
+
+    return await handle_file_upload(file, doc_path)
 
 
 @app.delete("/files/{filename}")
 async def delete_file(filename: str):
     return await handle_file_deletion(filename, DOC_PATH)
+
+
+@app.get("/models")
+async def get_models():
+    try:
+        base_url = os.environ.get("OPENAI_BASE_URL", "http://localhost:1234/v1")
+        response = requests.get(f"{base_url}/models")
+        response.raise_for_status()
+        models = response.json()
+        return {"models": models.get("data", [])}
+    except requests.exceptions.RequestException as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@app.get("/knowledge-bases")
+async def get_knowledge_bases():
+    vector_store_path = os.environ.get("VECTOR_STORE_PATH", "vector_store")
+    if not os.path.isdir(vector_store_path):
+        return {"knowledge_bases": []}
+
+    directories = [d for d in os.listdir(vector_store_path) if os.path.isdir(os.path.join(vector_store_path, d))]
+    return {"knowledge_bases": directories}
 
 
 @app.websocket("/ws")
